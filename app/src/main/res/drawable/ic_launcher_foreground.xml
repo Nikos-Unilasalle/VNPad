@@ -1,0 +1,15 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- 2x2 grid of rounded pads, centered in the safe zone. -->
+    <path android:fillColor="#FF2DD4BF"
+        android:pathData="M34,34 m0,6 a6,6 0 0 1 6,-6 h8 a6,6 0 0 1 6,6 v8 a6,6 0 0 1 -6,6 h-8 a6,6 0 0 1 -6,-6 z" />
+    <path android:fillColor="#FF007CF0"
+        android:pathData="M58,34 m0,6 a6,6 0 0 1 6,-6 h8 a6,6 0 0 1 6,6 v8 a6,6 0 0 1 -6,6 h-8 a6,6 0 0 1 -6,-6 z" />
+    <path android:fillColor="#FFF59E0B"
+        android:pathData="M34,58 m0,6 a6,6 0 0 1 6,-6 h8 a6,6 0 0 1 6,6 v8 a6,6 0 0 1 -6,6 h-8 a6,6 0 0 1 -6,-6 z" />
+    <path android:fillColor="#FFEC4899"
+        android:pathData="M58,58 m0,6 a6,6 0 0 1 6,-6 h8 a6,6 0 0 1 6,6 v8 a6,6 0 0 1 -6,6 h-8 a6,6 0 0 1 -6,-6 z" />
+</vector>

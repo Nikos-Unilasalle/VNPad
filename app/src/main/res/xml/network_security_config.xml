@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- VNPad talks to VNStudio over a plain ws:// socket on the local network.
+     Android blocks cleartext by default (API 28+). LAN hosts have arbitrary,
+     changing IPs, so we permit cleartext app-wide. VNPad only ever connects to
+     a user-scanned local address, never the public internet. -->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true" />
+</network-security-config>
