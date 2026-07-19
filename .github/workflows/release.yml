@@ -1,0 +1,74 @@
+name: Release APK
+
+# Build a signed APK and attach it to a GitHub Release whenever a version tag
+# is pushed (e.g. `git tag v0.1.0 && git push origin v0.1.0`).
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      # The keystore never lives in the repo. CI reconstructs it from secrets.
+      - name: Restore signing keystore
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          if [ -z "$KEYSTORE_BASE64" ]; then
+            echo "::error::KEYSTORE_BASE64 secret is not set — cannot produce an installable APK."
+            exit 1
+          fi
+          echo "$KEYSTORE_BASE64" | base64 --decode > vnpad-release.keystore
+          cat > keystore.properties <<EOF
+          storeFile=vnpad-release.keystore
+          storePassword=$KEYSTORE_PASSWORD
+          keyAlias=$KEY_ALIAS
+          keyPassword=$KEY_PASSWORD
+          EOF
+
+      - name: Build release APK
+        run: ./gradlew :app:assembleRelease --no-daemon
+
+      - name: Name the artifact after the tag
+        id: rename
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          [ -n "$VERSION" ] || VERSION="dev"
+          cp app/build/outputs/apk/release/app-release.apk "VNPad-${VERSION}.apk"
+          echo "apk=VNPad-${VERSION}.apk" >> "$GITHUB_OUTPUT"
+
+      # Keep a stable, never-changing filename so the website can hard-link it.
+      - name: Also publish under a stable filename
+        run: cp "${{ steps.rename.outputs.apk }}" VNPad.apk
+
+      - name: Wipe signing material
+        if: always()
+        run: rm -f vnpad-release.keystore keystore.properties
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            ${{ steps.rename.outputs.apk }}
+            VNPad.apk
+          generate_release_notes: true
