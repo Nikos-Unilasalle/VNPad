@@ -18,7 +18,19 @@ data class Pad(
     val colorHex: Long = 0xFF007CF0,
     val icon: String = "Bolt",
     val page: Int = 0,
-)
+    /** Size in grid cells. 1×1 is a normal key; 2×1 is a wide one, etc. */
+    val spanX: Int = 1,
+    val spanY: Int = 1,
+    /** Label size in sp. */
+    val textSize: Int = 22,
+) {
+    companion object {
+        const val MAX_SPAN = 3
+        const val MIN_TEXT_SIZE = 10
+        const val MAX_TEXT_SIZE = 48
+        const val TEXT_SIZE_STEP = 2
+    }
+}
 
 /** A named palette entry offered in the editor's colour picker. */
 data class PadColor(val name: String, val argb: Long)

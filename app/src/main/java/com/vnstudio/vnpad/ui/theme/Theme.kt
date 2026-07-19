@@ -6,8 +6,11 @@ import androidx.compose.material3.Typography
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.Font
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
+import com.vnstudio.vnpad.R
 
 // VNPad is a dark, high-contrast "stage" so the coloured pads pop. We commit to
 // a single dark scheme regardless of the system setting.
@@ -17,6 +20,13 @@ val VnSurfaceHi = Color(0xFF1E2530)
 val VnAccent = Color(0xFF007CF0)
 val VnText = Color(0xFFE6EAF0)
 val VnTextDim = Color(0xFF8A94A6)
+
+/** JetBrains Mono — the pad label typeface. */
+val JetBrainsMono = FontFamily(
+    Font(R.font.jetbrains_mono_regular, FontWeight.Normal),
+    Font(R.font.jetbrains_mono_bold, FontWeight.Bold),
+    Font(R.font.jetbrains_mono_extrabold, FontWeight.ExtraBold),
+)
 
 private val VNPadColors = darkColorScheme(
     primary = VnAccent,

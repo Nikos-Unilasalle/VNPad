@@ -5,11 +5,9 @@ import androidx.compose.animation.core.spring
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -17,6 +15,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.DragIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -30,6 +29,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.lerp
@@ -46,13 +46,17 @@ import androidx.compose.ui.unit.sp
 import com.vnstudio.vnpad.model.Pad
 import com.vnstudio.vnpad.ui.LocalPadSkin
 import com.vnstudio.vnpad.ui.iconFor
+import com.vnstudio.vnpad.ui.theme.JetBrainsMono
 import kotlin.math.roundToInt
 
 /**
  * A single stream-deck pad: a glossy, coloured key that visibly *lights up* when
  * held — the face brightens, the outer glow swells and a rim highlight kicks in.
  * Press fires [onPressFeedback] (haptic + click); a normal tap fires [onTap];
- * long-press (or any tap in [editing] mode) fires [onLongPress].
+ * long-press (or any tap in [editing] mode) fires [onLongPress]. In [editing]
+ * mode a drag handle appears; dragging it reports raw pointer deltas via
+ * [onDragStart]/[onDrag]/[onDragEnd] so the parent grid can reorder pads.
+ * [isDragging] renders this instance lifted (used for the floating drag copy).
  */
 @Composable
 fun PadButton(
@@ -62,18 +66,22 @@ fun PadButton(
     onLongPress: () -> Unit,
     onDelete: () -> Unit,
     onPressFeedback: () -> Unit = {},
+    isDragging: Boolean = false,
+    onDragStart: () -> Unit = {},
+    onDrag: (Offset) -> Unit = {},
+    onDragEnd: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     var pressed by remember { mutableStateOf(false) }
 
     val scale by animateFloatAsState(
-        targetValue = if (pressed) 0.94f else 1f,
+        targetValue = if (pressed) 0.94f else if (isDragging) 1.08f else 1f,
         animationSpec = spring(dampingRatio = 0.45f, stiffness = 900f),
         label = "padScale",
     )
     // 0 = resting, 1 = fully lit. Drives glow, sheen and rim together.
     val lit by animateFloatAsState(
-        targetValue = if (pressed) 1f else 0f,
+        targetValue = if (pressed || isDragging) 1f else 0f,
         animationSpec = spring(dampingRatio = 0.6f, stiffness = 700f),
         label = "padLit",
     )
@@ -81,12 +89,11 @@ fun PadButton(
     val base = Color(pad.colorHex)
     val top = lerp(base, Color.White, 0.32f)
     val bottom = lerp(base, Color.Black, 0.12f)
-    // Always-on coloured glow (backlit feel), swelling further while held.
-    val glow = 24f + 22f * lit
+    // Always-on coloured glow (backlit feel), swelling further while held/dragged.
+    val glow = 24f + 22f * lit + if (isDragging) 14f else 0f
 
     Box(
         modifier = modifier
-            .aspectRatio(1f)
             .scale(scale)
             // Real coloured halo drawn behind, overflowing into the gaps — a
             // device-independent backlit glow (colored elevation shadows are too
@@ -183,30 +190,33 @@ fun PadButton(
             )
         }
 
-        Column(
-            Modifier
-                .fillMaxSize()
-                .padding(14.dp),
-            verticalArrangement = Arrangement.SpaceBetween,
-        ) {
-            Icon(
-                imageVector = iconFor(pad.icon),
-                contentDescription = null,
-                tint = Color.White,
-                modifier = Modifier.size(30.dp),
-            )
-            Text(
-                text = pad.label,
-                color = Color.White,
-                fontWeight = FontWeight.Black,
-                fontSize = 15.sp,
-                lineHeight = 17.sp,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-                textAlign = TextAlign.Start,
-                modifier = Modifier.fillMaxWidth(),
-            )
-        }
+        Icon(
+            imageVector = iconFor(pad.icon),
+            contentDescription = null,
+            tint = Color.White.copy(alpha = 0.9f),
+            modifier = Modifier
+                .align(Alignment.TopStart)
+                .padding(10.dp)
+                .size(22.dp),
+        )
+
+        // Label: centred both ways, in a darkened shade of the pad's own colour
+        // so it reads against the lit face.
+        Text(
+            text = pad.label,
+            color = lerp(base, Color.Black, 0.62f),
+            fontFamily = JetBrainsMono,
+            fontWeight = FontWeight.ExtraBold,
+            fontSize = pad.textSize.sp,
+            lineHeight = (pad.textSize * 1.15f).sp,
+            maxLines = 3,
+            overflow = TextOverflow.Ellipsis,
+            textAlign = TextAlign.Center,
+            modifier = Modifier
+                .align(Alignment.Center)
+                .fillMaxWidth()
+                .padding(horizontal = 8.dp),
+        )
 
         if (editing) {
             Box(
@@ -220,6 +230,26 @@ fun PadButton(
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(Icons.Filled.Close, contentDescription = "Delete", tint = Color.White, modifier = Modifier.size(15.dp))
+            }
+
+            Box(
+                Modifier
+                    .align(Alignment.BottomStart)
+                    .padding(6.dp)
+                    .size(24.dp)
+                    .clip(RoundedCornerShape(50))
+                    .background(Color.Black.copy(alpha = 0.45f))
+                    .pointerInput(pad.id) {
+                        detectDragGestures(
+                            onDragStart = { onDragStart() },
+                            onDragEnd = { onDragEnd() },
+                            onDragCancel = { onDragEnd() },
+                            onDrag = { change, dragAmount -> change.consume(); onDrag(dragAmount) },
+                        )
+                    },
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(Icons.Filled.DragIndicator, contentDescription = "Drag to reorder", tint = Color.White, modifier = Modifier.size(15.dp))
             }
         }
     }

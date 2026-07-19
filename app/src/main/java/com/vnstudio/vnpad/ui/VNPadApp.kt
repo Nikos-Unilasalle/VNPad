@@ -1,5 +1,7 @@
 package com.vnstudio.vnpad.ui
 
+import android.app.Activity
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -8,12 +10,17 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalView
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.vnstudio.vnpad.model.Pad
@@ -35,9 +42,27 @@ fun VNPadApp(vm: VNPadViewModel = viewModel()) {
 
     var nav by remember { mutableStateOf<Nav>(Nav.Grid) }
     var editing by remember { mutableStateOf(false) }
+    var fullscreen by remember { mutableStateOf(false) }
     val snackbar = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val padSkin = rememberPadSkin()
+
+    // Fullscreen = immersive work session: system bars out of the way, chrome
+    // hidden. Swipe from an edge brings the bars back transiently.
+    val view = LocalView.current
+    LaunchedEffect(fullscreen) {
+        val window = (view.context as? Activity)?.window ?: return@LaunchedEffect
+        val controller = WindowCompat.getInsetsController(window, view)
+        if (fullscreen) {
+            controller.systemBarsBehavior =
+                WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+            controller.hide(WindowInsetsCompat.Type.systemBars())
+        } else {
+            controller.show(WindowInsetsCompat.Type.systemBars())
+        }
+    }
+
+    BackHandler(enabled = fullscreen) { fullscreen = false }
 
     CompositionLocalProvider(LocalPadSkin provides padSkin) {
         Scaffold(
@@ -52,7 +77,9 @@ fun VNPadApp(vm: VNPadViewModel = viewModel()) {
                         settings = settings,
                         status = status,
                         editing = editing,
+                        fullscreen = fullscreen,
                         onToggleEdit = { editing = !editing },
+                        onToggleFullscreen = { fullscreen = !fullscreen; if (fullscreen) editing = false },
                         onOpenSettings = { nav = Nav.Settings },
                         onPair = { nav = Nav.Pairing },
                         onTapPad = { pad ->
@@ -62,6 +89,7 @@ fun VNPadApp(vm: VNPadViewModel = viewModel()) {
                         onEditPad = { nav = Nav.Editor(it, it.page) },
                         onDeletePad = { vm.deletePad(it.id) },
                         onAddPad = { page -> nav = Nav.Editor(null, page) },
+                        onReorderPage = vm::reorderPage,
                     )
                 }
 

@@ -78,6 +78,12 @@ class VNPadViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch { store.savePads(list) }
     }
 
+    /** Persist a page's pads in a new order (drag-to-reorder). Other pages untouched. */
+    fun reorderPage(page: Int, newOrder: List<Pad>) {
+        val others = pads.value.filterNot { it.page == page }
+        viewModelScope.launch { store.savePads(others + newOrder) }
+    }
+
     // ---- Pages ----
 
     fun addPage(name: String) = updateSettings {

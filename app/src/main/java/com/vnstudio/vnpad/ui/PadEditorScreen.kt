@@ -41,6 +41,7 @@ import androidx.compose.ui.unit.sp
 import com.vnstudio.vnpad.model.NodeSchema
 import com.vnstudio.vnpad.model.PAD_PALETTE
 import com.vnstudio.vnpad.model.Pad
+import com.vnstudio.vnpad.ui.theme.JetBrainsMono
 import com.vnstudio.vnpad.ui.theme.VnAccent
 import com.vnstudio.vnpad.ui.theme.VnSurface
 import com.vnstudio.vnpad.ui.theme.VnSurfaceHi
@@ -63,6 +64,9 @@ fun PadEditorScreen(
     var color by rememberSaveable { mutableStateOf(initial?.colorHex ?: PAD_PALETTE.first().argb) }
     var icon by rememberSaveable { mutableStateOf(initial?.icon ?: "Bolt") }
     var params by rememberSaveable { mutableStateOf(initial?.paramsJson ?: "{}") }
+    var spanX by rememberSaveable { mutableStateOf(initial?.spanX ?: 1) }
+    var spanY by rememberSaveable { mutableStateOf(initial?.spanY ?: 1) }
+    var textSize by rememberSaveable { mutableStateOf(initial?.textSize ?: 22) }
 
     val paramsValid = remember(params) { isJsonObject(params) }
     val canSave = nodeType.isNotBlank() && paramsValid
@@ -84,6 +88,7 @@ fun PadEditorScreen(
                             id = id, label = label.trim().ifBlank { "Pad" },
                             nodeType = nodeType.trim(), paramsJson = params.ifBlank { "{}" },
                             colorHex = color, icon = icon, page = initial?.page ?: defaultPage,
+                            spanX = spanX, spanY = spanY, textSize = textSize,
                         )
                     )
                 },
@@ -96,6 +101,29 @@ fun PadEditorScreen(
 
             SectionLabel("Node")
             NodePicker(schemas = schemas, selectedType = nodeType, onSelect = { nodeType = it })
+
+            SectionLabel("Size (grid cells)")
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(20.dp)) {
+                SpanStepper("Width", spanX) { spanX = it }
+                SpanStepper("Height", spanY) { spanY = it }
+            }
+
+            SectionLabel("Text size")
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                SpanStepButton("−", enabled = textSize > Pad.MIN_TEXT_SIZE) {
+                    textSize = (textSize - Pad.TEXT_SIZE_STEP).coerceAtLeast(Pad.MIN_TEXT_SIZE)
+                }
+                Text(
+                    "$textSize",
+                    color = Color.White,
+                    fontFamily = JetBrainsMono,
+                    fontWeight = FontWeight.ExtraBold,
+                    fontSize = textSize.coerceAtMost(28).sp,
+                )
+                SpanStepButton("+", enabled = textSize < Pad.MAX_TEXT_SIZE) {
+                    textSize = (textSize + Pad.TEXT_SIZE_STEP).coerceAtMost(Pad.MAX_TEXT_SIZE)
+                }
+            }
 
             SectionLabel("Colour")
             Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -204,6 +232,37 @@ private fun NodePicker(
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun SpanStepper(label: String, value: Int, onChange: (Int) -> Unit) {
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text(label, color = VnTextDim, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            SpanStepButton("−", enabled = value > 1) { onChange(value - 1) }
+            Text("$value", color = Color.White, fontWeight = FontWeight.Black, fontSize = 20.sp)
+            SpanStepButton("+", enabled = value < Pad.MAX_SPAN) { onChange(value + 1) }
+        }
+    }
+}
+
+@Composable
+private fun SpanStepButton(symbol: String, enabled: Boolean, onClick: () -> Unit) {
+    Box(
+        Modifier
+            .size(38.dp)
+            .clip(RoundedCornerShape(10.dp))
+            .background(VnSurfaceHi)
+            .then(if (enabled) Modifier.clickableNoRipple(onClick) else Modifier),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            symbol,
+            color = if (enabled) Color.White else VnTextDim.copy(alpha = 0.4f),
+            fontWeight = FontWeight.Black,
+            fontSize = 18.sp,
+        )
     }
 }
 
